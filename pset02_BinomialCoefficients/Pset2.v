@@ -102,7 +102,7 @@ Module Impl.
 
   Close Scope N_recursion_scope.
   Print fact.
-  *)
+   *)
 
   (* Let's compute the first few values of fact: *)
   Compute fact 0.
@@ -118,14 +118,18 @@ Module Impl.
   (* Exercise: Define a simple exponentiation function in the same style, so that
      "exp base n" equals "base^n". *)
 
-  Definition exp(base: N): N -> N. Admitted.
+  Definition exp(base: N): N -> N :=
+    recurse by cases
+    | 0 => 1
+    | n + 1 => (base * recurse)
+    end.
 
   (* Once you define "exp", you can replace "Admitted." below by "Proof. equality. Qed." *)
-  Lemma test_exp_2_3: exp 2 3 = 8. Admitted.
-  Lemma test_exp_3_2: exp 3 2 = 9. Admitted.
-  Lemma test_exp_4_1: exp 4 1 = 4. Admitted.
-  Lemma test_exp_5_0: exp 5 0 = 1. Admitted.
-  Lemma test_exp_1_3: exp 1 3 = 1. Admitted.
+  Lemma test_exp_2_3: exp 2 3 = 8. Proof. equality. Qed.
+  Lemma test_exp_3_2: exp 3 2 = 9. Proof. equality. Qed.
+  Lemma test_exp_4_1: exp 4 1 = 4. Proof. equality. Qed.
+  Lemma test_exp_5_0: exp 5 0 = 1. Proof. equality. Qed.
+  Lemma test_exp_1_3: exp 1 3 = 1. Proof. equality. Qed.
 
   (* Here's another recursive function defined in the same style to apply a
      function f to a range of values:
@@ -211,16 +215,35 @@ Module Impl.
      induction, try to think where/if you would need an inductive hypothesis. *)
 
   (* Exercise: Prove that the i-th element of seq has the value we'd expect. *)
+    
   Lemma seq_spec: forall f count i start, i < count -> ith i (seq f count start) = f (start + i).
   Proof.
     induct count; simplify.
-  Admitted.
+    { linear_arithmetic. }
+    { unfold_recurse (seq f) (count).
+      cases i; simplify.
+      { apply f_equal.
+        linear_arithmetic. }
+      unfold_recurse ith i.
+      replace (start + (i + 1)) with ((start + 1) + i) by linear_arithmetic.
+      apply IHcount.
+      linear_arithmetic.
+    }
+  Qed.
 
   (* Exercise: Prove that if the index is out of bounds, "ith" returns 0. *)
   Lemma ith_out_of_bounds_0: forall i l, len l <= i -> ith i l = 0.
   Proof.
-  Admitted.
-
+    intros.
+    generalize dependent l.
+    induct i; simplify.
+    { cases l; simplify; linear_arithmetic. }
+    { unfold_recurse ith i.
+      cases l; simplify.
+      { linear_arithmetic. }
+      { apply IHi. linear_arithmetic. }
+    }
+  Qed.
 
   (* Binomial coefficients *)
   (* ********************* *)
@@ -318,16 +341,36 @@ Module Impl.
 
   Lemma fact_nonzero: forall n, n! <> 0.
   Proof.
-  Admitted.
+    intros.
+    induct n; simplify.
+    { linear_arithmetic. }
+    { unfold_recurse fact n.
+      apply N.neq_mul_0.
+      split; linear_arithmetic. }
+  Qed.
+
+  (* Hint Rewrite N.add_0_r N.sub_0_r N.mul_1_l N.mul_1_r. *)
 
   Lemma Cn0: forall n, C n 0 = 1.
   Proof.
-  Admitted.
+    intros.
+    unfold C.
+    simplify.
+    rewrite N.mul_1_r, N.sub_0_r.
+    apply N.div_same.
+    apply fact_nonzero.
+  Qed.
 
   Lemma Cnn: forall n, C n n = 1.
   Proof.
-  Admitted.
-
+    intros.
+    unfold C.
+    replace (n - n) with 0 by linear_arithmetic.
+    simplify.
+    rewrite N.mul_1_l.
+    apply N.div_same.
+    apply fact_nonzero.
+  Qed.
 
   (* It's somewhat surprising that in the definition of C(n, k),
 
@@ -462,12 +505,89 @@ Module Impl.
      "a / b * c / d" is "((a / b) * c) / d", NOT "(a / b) * (c / d)"
 
   Here we go: *)
+
+  Lemma mul_div_swap: forall n m k,
+      m <> 0 -> (m | n) -> n / m * k = n * k / m.
+  Proof.
+    intros.
+    induct k; simplify.
+    { rewrite !N.mul_0_r.
+      rewrite N.div_0_l; trivial. }
+    { rewrite !N.mul_add_distr_l.
+      rewrite IHk.
+      replace (n * k + n * 1) with (n * k / m * m + n * 1).
+      rewrite N.div_add_l.
+      rewrite !N.mul_1_r.
+      nia.
+      trivial.
+      rewrite N.mul_comm.
+      replace (m * (n * k / m)) with (n * k).
+      nia.
+      apply N.div_exact; trivial.
+      rewrite N.mod_divide.
+      apply N.divide_mul_l.
+      trivial.
+      trivial. }
+  Qed.
+    
   Lemma bcoeff_correct: forall n k, k <= n -> bcoeff n k = C n k.
   Proof.
-    induct k; simplify.
-  Admitted.
+    symmetry. induct k; simplify.
+    { apply Cn0. }
+    { unfold C.
+      unfold_recurse fact k.
+      replace (n! / ((n - (k + 1))! * ((k + 1) * k!))) with
+        (n! * (n - k) / ((n - (k + 1))! * (n - k) * ((k + 1) * k!))).
+      replace (n - k) with ((n - (k + 1)) + 1) by linear_arithmetic.
+      replace ((n - (k + 1))! * (n - (k + 1) + 1)) with
+        ((n - (k + 1) + 1)!).
+      replace (n - (k + 1) + 1) with (n - k) by linear_arithmetic.
+      replace (n! * (n - k) / ((n - k)! * ((k + 1) * k!))) with
+        ((n! / ((n - k)! * k!)) * (n - k) / (k + 1)).
+      replace (n! / ((n - k)! * k!)) with (C n k).
+      rewrite IHk.
+      unfold_recurse (bcoeff n) k.
+      nia.
+      lia.
+      unfold C; equality.
+      replace (n! / ((n - k)! * k!) * (n - k)) with
+        (n! * (n - k) / ((n - k)! * k!)).
+      rewrite N.div_div.
+      replace ((n - k)! * k! * (k + 1)) with
+        ((n - k)! * ((k + 1) * k!)) by nia.
+      equality.
 
+      apply N.neq_mul_0.
+      split; apply fact_nonzero.
+      linear_arithmetic.
 
+      rewrite mul_div_swap.
+      equality.
+      apply N.neq_mul_0.
+      split; apply fact_nonzero.
+
+      apply C_is_integer.
+      linear_arithmetic.
+
+      unfold_recurse fact (n - (k + 1)).
+      nia.
+
+      rewrite (N.mul_comm (n!) (n - k)).
+      rewrite (N.mul_comm ((n - (k + 1))!) (n - k)).
+      rewrite <- (N.mul_assoc (n - k)).
+      rewrite N.div_mul_cancel_l.
+      equality.
+      apply N.neq_mul_0.
+      split.
+      apply fact_nonzero.
+      apply N.neq_mul_0.
+      split.
+      linear_arithmetic.
+      apply fact_nonzero.
+      linear_arithmetic.
+    }
+  Qed.
+  
   (* All binomial coefficients for a given n *)
   (* *************************************** *)
 
@@ -557,13 +677,105 @@ Module Impl.
   (* Exercise: Let's prove that all_coeffs_fast is correct.
      Note that you can assume Pascal's rule to prove this. *)
   (* HINT 1 (see Pset2Sig.v) *)
+
+  Lemma len_cons: forall a l,
+      len (a :: l) = len l + 1.
+  Proof.
+    intros.
+    generalize dependent a.
+    induct l; simplify; linear_arithmetic.
+  Qed.
+  
+  Lemma len_all_coeffs_fast: forall n, len (all_coeffs_fast n) = n + 1.
+  Proof.
+    intros.
+    induct n; simplify.
+    { linear_arithmetic. }
+    { unfold_recurse all_coeffs_fast n.
+      unfold nextLine.
+      rewrite len_cons.
+      rewrite seq_len.
+      linear_arithmetic. }
+  Qed.
+
+  Lemma ith_nextLine: forall k l,
+      l <> [] -> k <= (len l) -> k > 0 ->
+      ith k (nextLine l) =
+        ith (k - 1) l + ith k l.
+  Proof.
+    intros.
+    unfold nextLine.
+    replace (k) with (k - 1 + 1) by linear_arithmetic.
+    unfold_recurse ith (k - 1).
+    rewrite seq_spec.
+    replace (1 + (k - 1)) with ((k - 1) + 1) by linear_arithmetic.
+    unfold_recurse ith (k - 1).
+    equality.
+
+    linear_arithmetic.
+  Qed.
+
+  Lemma nth_all_coeffs_fast_n: forall n,
+      ith n (all_coeffs_fast n) = C n n.
+  Proof.
+    intros.
+    induct n; simplify.
+    { equality. }
+    { unfold_recurse all_coeffs_fast (n).
+      unfold nextLine.
+      unfold_recurse ith n.
+      rewrite seq_spec.
+      rewrite (ith_out_of_bounds_0 (1 + n)).
+      replace (1 + n - 1) with n by linear_arithmetic.
+      rewrite IHn.
+      rewrite !Cnn.
+      linear_arithmetic.
+
+      all: rewrite len_all_coeffs_fast; linear_arithmetic.
+    }
+  Qed.
+    
   Lemma all_coeffs_fast_correct:
     Pascal's_rule ->
     forall n k,
       k <= n ->
       ith k (all_coeffs_fast n) = C n k.
   Proof.
-  Admitted.
+    induct n; simplify.
+    { assert (k = 0) by linear_arithmetic.
+      rewrite H1.
+      unfold C.
+      simplify.
+      rewrite N.mul_1_r.
+      rewrite N.div_1_r.
+      equality. }
+    { assert (k = 0 \/ 1 <= k <= n \/ k = n+1) by linear_arithmetic.
+      cases H1; simplify.
+      { unfold_recurse all_coeffs_fast n.
+        unfold nextLine.
+        rewrite H1.
+        simplify.
+        rewrite Cn0.
+        equality. }
+      { unfold_recurse all_coeffs_fast n.
+        rewrite ith_nextLine.
+        rewrite !IHn.
+        symmetry.
+        apply H.
+        all: try linear_arithmetic.
+        
+        cases (all_coeffs_fast n); simplify.
+        apply (f_equal len) in Heq.
+        simplify.
+        rewrite len_all_coeffs_fast in Heq.
+        linear_arithmetic.
+        discriminate.
+        rewrite len_all_coeffs_fast.
+        linear_arithmetic. }
+      { rewrite H1.
+        apply nth_all_coeffs_fast_n. }
+    }
+  Qed.
 
   (* ----- THIS IS THE END OF PSET2 ----- All exercises below this line are optional. *)
 
