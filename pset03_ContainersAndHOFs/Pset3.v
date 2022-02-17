@@ -63,6 +63,7 @@ Module Impl.
 
   Lemma compose_id_l : forall A B (f: A -> B),
       id ∘ f = f.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Proof. equality. Qed.
   (* END SOLUTION *)
@@ -90,6 +91,20 @@ Module Impl.
   Proof.
   Admitted.
      END HANDOUT *)
+=======
+  Proof.
+  Admitted.
+
+  Lemma compose_id_r : forall A B (f: A -> B),
+      f ∘ id = f.
+  Proof.
+  Admitted.
+
+  Lemma compose_assoc : forall A B C D (f: A -> B) (g: B -> C) (h: C -> D),
+      h ∘ (g ∘ f) = h ∘ g ∘ f.
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* The selfCompose function takes a function and applies this function n times
      to the argument. There are different ways of defining it, but let's
@@ -109,6 +124,7 @@ Module Impl.
      saying "to raise [base] to the power [e], apply the function that multiplies
      its argument by [base] to [1] [e] times".
      Define [exp] using [selfCompose] and [Nat.mul]. *)
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Definition exp(base e: nat): nat := selfCompose (Nat.mul base) e 1.
 
@@ -118,6 +134,8 @@ Module Impl.
   Lemma test_exp_1_3: exp 1 3 = 1. Proof. equality. Qed.
   (* END SOLUTION *)
   (* BEGIN HANDOUT
+=======
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
   Definition exp(base e: nat): nat. Admitted.
 
   (* Once you define [exp], you can replace [Admitted.] below by [Proof. equality. Qed.] *)
@@ -126,7 +144,10 @@ Module Impl.
   Lemma test_exp_4_1: exp 4 1 = 4. Admitted.
   Lemma test_exp_5_0: exp 5 0 = 1. Admitted.
   Lemma test_exp_1_3: exp 1 3 = 1. Admitted.
+<<<<<<< HEAD
      END HANDOUT *)
+=======
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* And here's another example to illustrate [selfCompose]. Make sure you understand
      why its result is 256. *)
@@ -142,6 +163,7 @@ Module Impl.
      is the left inverse of the function that adds two to its argument. *)
   Example plus2minus2: left_inverse (fun (x: nat) => x + 2) (fun (x: nat) => x - 2).
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     unfold left_inverse, compose, id.
     apply fun_ext.
@@ -152,6 +174,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* On the other hand, note that the other direction does not hold, because
      if a subtraction on natural numbers underflows, it just returns 0, so
@@ -159,6 +184,7 @@ Module Impl.
      so it can't have a left inverse. *)
   Example minus2plus2: ~ left_inverse (fun (x: nat) => x - 2) (fun (x: nat) => x + 2).
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     unfold left_inverse.
     unfold not, compose.
@@ -175,6 +201,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Let us make the intuition from the previous paragraph more
      concrete, by proving that a function that is not injective
@@ -187,6 +216,7 @@ Module Impl.
       left_inverse f g ->
       (forall x y, f x = f y -> x = y).
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     unfold left_inverse; simplify.
     replace x with ((g ∘ f) x) by (rewrite H; equality).
@@ -198,6 +228,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Bonus question (no points): can you prove the reverse;
      i.e., can you prove that all injective functions have left
@@ -208,6 +241,7 @@ Module Impl.
      type arguments explicitly, because otherwise Coq would not be able to infer them." *)
   Lemma left_inverse_id: forall A, left_inverse (@id A) (@id A).
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     unfold left_inverse, id. simplify. equality.
   Qed.
@@ -229,6 +263,9 @@ Module Impl.
       assumption.
   Qed.
   (* END SOLUTION *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Now we can start proving interesting facts about inverse functions: *)
   (* Here's how to invert the power function: *)
@@ -237,6 +274,7 @@ Module Impl.
       left_inverse f g ->
       left_inverse (selfCompose f n) (selfCompose g n).
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     induct n; simplify.
     - apply left_inverse_id.
@@ -257,6 +295,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (** ** Polymorphic container types *)
 
@@ -299,6 +340,7 @@ Module Impl.
    * this operation does: the argument [k] is a path, in which
    * [true] means "go left" and [false] means "go right".
    *)
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Fixpoint lookup {A} (k : list bool) (t : bitwise_trie A) {struct t} : option A :=
     match t with
@@ -324,11 +366,19 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Fixpoint lookup {A} (k : list bool) (t : bitwise_trie A) {struct t} : option A. Admitted.
+
+  Example lookup_example1 : lookup [] (Node Leaf (None : option nat) Leaf) = None.
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   Example lookup_example2 : lookup [false; true]
       (Node (Node Leaf (Some 2) Leaf) None (Node (Node Leaf (Some 1) Leaf) (Some 3) Leaf))
                             = Some 1.
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     simplify.
     equality.
@@ -337,6 +387,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* [Leaf] represents an empty bitwise trie, so a lookup for
    * any key should return [None].
@@ -344,6 +397,7 @@ Module Impl.
   Theorem lookup_empty {A} (k : list bool)
     : lookup k (Leaf : bitwise_trie A) = None.
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     simplify.
     equality.
@@ -367,6 +421,11 @@ Module Impl.
                  else Node Leaf None branch
     end.
   (* END SOLUTION *)
+=======
+  Admitted.
+
+  (* HINT 3 (see Pset3Sig.v) *)
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Define an operation to "insert" a key and optional value
    * into a bitwise trie. The [insert] definition should satisfy two
@@ -384,6 +443,7 @@ Module Impl.
    * that creates a singleton tree (a tree containing a single
    * key-value pair).
    *)
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Fixpoint insert {A} (k : list bool) (v : option A) (t : bitwise_trie A) {struct t}
     : bitwise_trie A :=
@@ -452,6 +512,24 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Fixpoint insert {A} (k : list bool) (v : option A) (t : bitwise_trie A) {struct t}
+    : bitwise_trie A. Admitted.
+
+  Example insert_example1 : lookup [] (insert [] None (Node Leaf (Some 0) Leaf)) = None.
+  Proof.
+  Admitted.
+
+  Example insert_example2 : lookup [] (insert [true] (Some 2) (Node Leaf (Some 0) Leaf)) = Some 0.
+  Proof.
+  Admitted.
+  
+  (* HINT 4 (see Pset3Sig.v) *) 
+  Theorem lookup_insert {A} (k : list bool) (v : option A) (t : bitwise_trie A) :
+    lookup k (insert k v t) = v.
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Define an operation to "merge" that takes two bitwise tries and merges
    * them together. The [merge] definition should combine two bitwise tries, 
@@ -469,6 +547,7 @@ Module Impl.
    * the tries once.
    *)
   
+<<<<<<< HEAD
   (* BEGIN HANDOUT
   Fixpoint merge {A} (t1 t2 : bitwise_trie A) : bitwise_trie A. Admitted.    
      END HANDOUT *)
@@ -518,11 +597,26 @@ Module Impl.
     Node Leaf (Some 2) Leaf.
   Proof. Admitted.
   END HANDOUT *)
+=======
+  Fixpoint merge {A} (t1 t2 : bitwise_trie A) : bitwise_trie A. Admitted.    
+  Lemma merge_example1 :
+    merge (Node Leaf (Some 1) Leaf) (Node Leaf (Some 2) Leaf) =
+    Node Leaf (Some 1) Leaf.
+  Proof. Admitted.
+  Lemma merge_example2 :
+    merge Leaf (Node Leaf (@None nat) Leaf) = Node Leaf None Leaf.
+  Proof. Admitted.
+  Lemma merge_example3 :
+    merge (Node Leaf None Leaf) (Node Leaf (Some 2) Leaf) =
+    Node Leaf (Some 2) Leaf.
+  Proof. Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
     
   Theorem left_lookup_merge {A} : forall (t1 t2 : bitwise_trie A) k v,
       lookup k t1 = Some v ->
       lookup k (merge t1 t2) = Some v.
   Proof.
+<<<<<<< HEAD
     (* BEGIN SOLUTION *)
     induct t1; simplify.
     - equality.
@@ -536,11 +630,15 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
   END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   Theorem lookup_merge_None {A} : forall (t1 t2 : bitwise_trie A) k,
       lookup k (merge t1 t2) = None ->
       lookup k t1 = None /\ lookup k t2 = None.
   Proof.
+<<<<<<< HEAD
     (* BEGIN SOLUTION *)
     induct t1; simplify.
     - propositional.
@@ -591,11 +689,16 @@ Module Impl.
   Qed.
   (* END SOLUTION *)
 
+=======
+  Admitted.
+  
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
   (* HINT 5 (see Pset3Sig.v) *)
   Theorem merge_selfCompose {A} : forall n (t1 t2 : bitwise_trie A),
       0 < n ->
       selfCompose (merge t1) n t2 = merge t1 t2.
   Proof.
+<<<<<<< HEAD
     (* BEGIN SOLUTION *)
     induct n; simplify.
     - linear_arithmetic.
@@ -611,6 +714,10 @@ Module Impl.
   Admitted.
   END HANDOUT *)
 
+=======
+  Admitted.
+  
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
   (* Define an operation to "mirror" that takes a tree (not necessarily a 
    * trie) and returns the mirrored version of the tree.
    *
@@ -621,6 +728,7 @@ Module Impl.
    * list resulting from the flattening of that same tree.
  *)
   
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Fixpoint mirror {A} (t : tree A) : tree A :=
     match t with
@@ -631,20 +739,28 @@ Module Impl.
   (* BEGIN HANDOUT
    Fixpoint mirror {A} (t : tree A) : tree A. Admitted.     
    END HANDOUT *)
+=======
+  Fixpoint mirror {A} (t : tree A) : tree A. Admitted.     
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   Example mirror_test1 :
     mirror (Node Leaf 1 (Node Leaf 2 (Node Leaf 3 Leaf))) =
     Node (Node (Node Leaf 3 Leaf) 2 Leaf) 1 Leaf.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Proof. equality. Qed.
   (* END SOLUTION *)
   (* BEGIN HANDOUT 
   Admitted.
   END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
   
   Theorem mirror_mirror_id {A} : forall (t : tree A),
       mirror (mirror t) = t.
   Proof.
+<<<<<<< HEAD
     (* BEGIN SOLUTION *)
     induct t; simplify; equality.
   Qed.
@@ -652,10 +768,14 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
   END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
   
   Theorem flatten_mirror_rev {A} : forall (t : tree A),
       flatten (mirror t) = rev (flatten t).
   Proof.
+<<<<<<< HEAD
     (* BEGIN SOLUTION *)
     induct t; simplify.
     - equality.
@@ -670,6 +790,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
   END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (** ** HOFs on lists and trees **)
   
@@ -678,6 +801,7 @@ Module Impl.
    * elements to all of the elements in the tree, leaving the tree
    * structure intact.
    *)
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Fixpoint tree_map {A B : Type} (f : A -> B) (t : tree A)
     : tree B :=
@@ -690,11 +814,16 @@ Module Impl.
   Fixpoint tree_map {A B : Type} (f : A -> B) (t : tree A)
     : tree B. Admitted.
      END HANDOUT *)
+=======
+  Fixpoint tree_map {A B : Type} (f : A -> B) (t : tree A)
+    : tree B. Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   Example tree_map_example :
     tree_map (fun x => x + 1) (Node (Node Leaf 1 Leaf) 2 (Node Leaf 3 (Node Leaf 4 Leaf)))
     = (Node (Node Leaf 2 Leaf) 3 (Node Leaf 4 (Node Leaf 5 Leaf))).
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     simplify.
     equality.
@@ -718,6 +847,10 @@ Module Impl.
   Qed.
 
   (* END SOLUTION *)
+=======
+  Admitted.
+
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
   (* [tree_map_flatten] shows that [map]
    * and [tree_map] are related by the [flatten] function.
    *)
@@ -725,6 +858,7 @@ Module Impl.
   Theorem tree_map_flatten : forall {A B : Type} (f : A -> B) (t : tree A),
       flatten (tree_map f t) = map f (flatten t).
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     induct t.
     - simplify.
@@ -739,6 +873,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* This function asserts that a predicate holds over all
      elements of a tree. *)
@@ -751,6 +888,7 @@ Module Impl.
   (* Define a similar function for the [exists] case; that is, define
      a function that asserts that a predicate holds for at least
      one value of a tree. *)
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Fixpoint tree_exists {A} (P: A -> Prop) (tr: tree A) {struct tr} :=
     match tr with
@@ -762,10 +900,15 @@ Module Impl.
   Fixpoint tree_exists {A} (P: A -> Prop) (tr: tree A) {struct tr} : Prop.
   Admitted.
      END HANDOUT *)
+=======
+  Fixpoint tree_exists {A} (P: A -> Prop) (tr: tree A) {struct tr} : Prop.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Two sanity checks for your function: *)
   Lemma tree_exists_Leaf {A} (P: A -> Prop):
     ~ tree_exists P Leaf.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Proof. unfold tree_exists; propositional. Qed.
   (* END SOLUTION *)
@@ -783,19 +926,32 @@ Module Impl.
   Proof.
   Admitted.
      END HANDOUT *)
+=======
+  Proof.
+  Admitted.
+
+  Lemma tree_forall_exists {A} (P: A -> Prop):
+    forall tr, tr <> Leaf -> tree_forall P tr -> tree_exists P tr.
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* What does the following theorem mean? Write a short
      explanation below. *)
 
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   (* “If an element [a] is in a tree [tr] and [tree_forall P tr]
      holds, then [P a] holds” *)
   (* END SOLUTION *)
 
+=======
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
   Lemma tree_forall_sound {A} (P: A -> Prop):
     forall tr, tree_forall P tr ->
           forall d, tree_exists (fun d' => d' = d) tr ->
                P d.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Proof. induct tr; simplify; propositional; subst; first_order. Qed.
   (* END SOLUTION *)
@@ -803,6 +959,10 @@ Module Impl.
   Proof.
   Admitted.
      END HANDOUT *)
+=======
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (** ** Binary search trees **)
 
@@ -857,6 +1017,7 @@ Module Impl.
      trying to apply and <term> is what you what to fill in for <x>.
    *)
   
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   (* Hint: *)
   Lemma tree_forall_implies:
@@ -876,10 +1037,13 @@ Module Impl.
         first_order.
   Qed.
   (* END SOLUTION *)
+=======
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* HINT 7 (see Pset3Sig.v) *)
   Lemma bst_implies:
     forall tr s, bst tr s -> tree_forall s tr.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Proof.
     induction tr; simplify.
@@ -894,6 +1058,10 @@ Module Impl.
   Proof.
   Admitted.
      END HANDOUT *)
+=======
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Next, let's prove that elements of the left subtree of a
      BST node are less than the node's data and that all
@@ -905,6 +1073,7 @@ Module Impl.
     forall l d r s,
       bst (Node l d r) s ->
       tree_forall (fun x => x < d) l /\ tree_forall (fun x => x > d) r.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Proof.
     simplify.
@@ -921,6 +1090,10 @@ Module Impl.
   Proof.
   Admitted.
      END HANDOUT *)
+=======
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Here is another convenient property: if two sets are the
      same, then a bst representing one also represents the
@@ -931,6 +1104,7 @@ Module Impl.
       bst tr P ->
       (forall x, P x <-> Q x) ->
       bst tr Q.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Proof.
     induct tr; simplify.
@@ -949,6 +1123,10 @@ Module Impl.
   Proof.
   Admitted.
      END HANDOUT *)
+=======
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Let's prove something about the way we can map over binary search
      trees while preserving the bst structure. In order to preserve, the
@@ -969,6 +1147,7 @@ Module Impl.
       (forall x, P x <-> Q (f x)) ->
       bst (tree_map f tr) Q.
   Proof.
+<<<<<<< HEAD
     (* BEGIN SOLUTION *)
     induct tr; simplify.
     - propositional.
@@ -1002,6 +1181,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
   END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Monotone functions can be characterized as monotone increasing or 
      monotone decreasing. In the case of a strictly monotonically decreasing
@@ -1021,6 +1203,7 @@ Module Impl.
       (forall x, P x <-> Q (f x)) ->
       bst (mirror (tree_map f tr)) Q.
   Proof.
+<<<<<<< HEAD
     (* BEGIN SOLUTION *)
     induct tr; simplify.
     - propositional.
@@ -1050,6 +1233,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
   END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
   
   (* [member] computes whether [a] is in [tr], but to do so it *relies* on the
      [bst] property -- if [tr] is not a valid binary search tree, [member]
@@ -1068,6 +1254,7 @@ Module Impl.
 
   Lemma member_bst : forall tr s a,
       bst tr s -> bst_member a tr = true <-> s a.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Proof.
     induct tr; simplify.
@@ -1079,6 +1266,10 @@ Module Impl.
   Proof.
   Admitted.
      END HANDOUT *)
+=======
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Next week, we will look at insertion and deletion in
      BSTs. *)
@@ -1123,6 +1314,7 @@ Module Impl.
   Lemma map_is_fold : forall {A B : Type} (f : A -> B) (xs : list A),
       map f xs = fold (fun x ys => cons (f x) ys) nil xs.
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     induct xs.
     - simplify.
@@ -1135,6 +1327,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Since [fold f z] replaces [cons] with [f] and [nil] with
    * [z], [fold cons nil] should be the identity function.
@@ -1142,6 +1337,7 @@ Module Impl.
   Theorem fold_id : forall {A : Type} (xs : list A),
       fold cons nil xs = xs.
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     induct xs.
     - simplify.
@@ -1154,6 +1350,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* If we apply [fold] to the concatenation of two lists,
    * it is the same as folding the "right" list and using
@@ -1163,6 +1362,7 @@ Module Impl.
                                (xs ys : list A),
       fold f z (xs ++ ys) = fold f (fold f z ys) xs.
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     induct xs.
     - simplify.
@@ -1175,10 +1375,14 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Using [fold], define a function that computes the
    * sum of a list of natural numbers.
    *)
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Definition sum : list nat -> nat := fold plus 0.
   (* END SOLUTION *)
@@ -1197,11 +1401,19 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Definition sum : list nat -> nat. Admitted.
+
+  Example sum_example : sum [1; 2; 3] = 6.
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Using [fold], define a function that computes the
    * conjunction of a list of Booleans (where the 0-ary
    * conjunction is defined as [true]).
    *)
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Definition all : list bool -> bool := fold andb true.
   (* END SOLUTION *)
@@ -1230,6 +1442,13 @@ Module Impl.
     equality.
   Qed.
   (* END SOLUTION *)
+=======
+  Definition all : list bool -> bool. Admitted.
+
+  Example all_example : all [true; false; true] = false.
+  Proof.
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* The following two theorems, [sum_append] and [all_append],
    * say that the sum of the concatenation of two lists
@@ -1239,6 +1458,7 @@ Module Impl.
   Theorem sum_append : forall (xs ys : list nat),
       sum (xs ++ ys) = sum xs + sum ys.
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     simplify.
     induction xs.
@@ -1263,10 +1483,14 @@ Module Impl.
     equality.
   Qed.
   (* END SOLUTION *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   Theorem all_append : forall (xs ys : list bool),
       all (xs ++ ys) = andb (all xs) (all ys).
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     simplify.
     induction xs.
@@ -1281,10 +1505,14 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Using [fold], define a function that composes a list of functions,
    * applying the *last* function in the list *first*.
    *)
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
   Definition compose_list {A : Type} : list (A -> A) -> A -> A :=
     fold compose id.
@@ -1292,10 +1520,14 @@ Module Impl.
   (* BEGIN HANDOUT
   Definition compose_list {A : Type} : list (A -> A) -> A -> A. Admitted.
      END HANDOUT *)
+=======
+  Definition compose_list {A : Type} : list (A -> A) -> A -> A. Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   Example compose_list_example :
     compose_list [fun x => x + 1; fun x => x * 2; fun x => x + 2] 1 = 7.
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     (* Same issue with [simplify] here. *)
     simplify.
@@ -1317,6 +1549,9 @@ Module Impl.
     equality.
   Qed.
   (* END SOLUTION *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 
   (* Show that [sum xs] is the same as converting each number
    * in the list [xs] to a function that adds that number,
@@ -1329,6 +1564,7 @@ Module Impl.
   Theorem compose_list_map_add_sum : forall (xs : list nat),
       compose_list (map plus xs) 0 = sum xs.
   Proof.
+<<<<<<< HEAD
   (* BEGIN SOLUTION *)
     induct xs.
     - simplify.
@@ -1343,6 +1579,9 @@ Module Impl.
   (* BEGIN HANDOUT
   Admitted.
      END HANDOUT *)
+=======
+  Admitted.
+>>>>>>> 3e863c7d5056ac92704c2b94ee39e21abc6b805a
 End Impl.
 
 Module ImplCorrect : Pset3Sig.S := Impl.
