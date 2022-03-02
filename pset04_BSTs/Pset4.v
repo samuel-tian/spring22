@@ -190,11 +190,22 @@ Module Impl.
      tree in cases where the expected structure is not present. *)
   
   (* HINT 1 (see Pset4Sig.v) *)
-  Definition rotate (T : tree) : tree.
-  Admitted.
+  Definition rotate (T : tree) : tree :=
+    match T with
+    | Leaf => T
+    | Node t A R => match R with
+                   | Leaf => T
+                   | Node r B X => Node r (Node t A B) X
+                   end
+    end.
 
   Lemma bst_rotate T s (H : bst T s) : bst (rotate T) s.
-  Admitted.
+    cases T; simplify.
+    specialize (H x).
+    propositional.
+    cases T2; simplify; propositional;
+      use_bst_iff_assumption; propositional; linear_arithmetic.
+  Qed.
 
   (* There is a hint in the signature file that completely gives away the proofs
    * of these rotations. We recommend you study that code after completing this
@@ -203,7 +214,41 @@ Module Impl.
   Lemma bst_insert : forall tr s a, bst tr s ->
     bst (insert a tr) (fun x => s x \/ x = a).
   Proof.
-  Admitted.
+    intros.
+    induct tr; simplify.
+    { propositional.
+      apply H with (x:=x).
+      assumption.
+      linear_arithmetic.
+      apply H with (x:=x).
+      assumption.
+      linear_arithmetic. }
+    { cases (compare a d); simplify.
+      { propositional.
+        apply IHtr1 with (a:=a) in H.
+        use_bst_iff_assumption.
+        propositional.
+        linear_arithmetic.
+        use_bst_iff_assumption.
+        propositional.
+        linear_arithmetic. }
+      { propositional.
+        use_bst_iff_assumption.
+        propositional.
+        linear_arithmetic.
+        use_bst_iff_assumption.
+        propositional.
+        linear_arithmetic. }
+      { propositional.
+        use_bst_iff_assumption.
+        propositional.
+        linear_arithmetic.
+        apply IHtr2 with (a:=a) in H2.
+        use_bst_iff_assumption.
+        propositional.
+        linear_arithmetic. }
+    }
+  Qed.
 
   (* To prove [bst_delete], you will need to write specifications for its helper
      functions, find suitable statements for proving correctness by induction, and use
@@ -218,12 +263,297 @@ Module Impl.
      would need to know about this function. *)
 
   (* HINT 2-5 (see Pset4Sig.v) *)
-  Lemma bst_delete : forall tr s a, bst tr s ->
-    bst (delete a tr) (fun x => s x /\ x <> a).
-  Proof.
-  Admitted.
 
-  (* Great job! Now you have proven all tree-structure-manipulating operations
+  Definition left_child (tr : tree) : tree :=
+    match tr with
+    | Leaf => Leaf
+    | Node d l r => l
+    end.
+
+  Definition right_child (tr : tree) : tree :=
+    match tr with
+    | Leaf => Leaf
+    | Node d l r => r
+    end.
+
+  Definition node_value (tr : tree) : (option t) :=
+    match tr with
+    | Leaf => None
+    | Node d l r => Some d
+    end.
+
+  Lemma node_value_bst : forall tr s d,
+      bst tr s
+      -> node_value tr = Some d
+      -> s d.
+  Proof.
+    intros.
+    induct tr; simplify.
+    { invert H0. }
+    { invert H0; propositional. }
+  Qed.
+
+  Lemma node_value_ordered : forall tr s n1 n2,
+      bst tr s
+      -> node_value tr = Some n1
+      -> node_value (right_child tr) = Some n2
+      -> n1 < n2.
+  Proof.
+    intros.
+    cases tr; simplify.
+    { invert H0. }
+    { propositional.
+      apply node_value_bst with (s:=(fun x : t => s x /\ d < x)) in H1.
+      propositional.
+      invert H0; equality.
+      assumption. }
+  Qed.
+
+  Lemma rightmost_bst : forall tr s n,
+      bst tr s
+      -> rightmost tr = Some n
+      -> s n.
+  Proof.
+    intros.
+    induct tr; simplify.
+    { invert H0. }
+    { cases (rightmost tr2); simplify.
+      { propositional.
+        assert ((fun x : t => s x /\ d < x) n -> s n) by propositional.
+        apply H2.
+        apply IHtr2 with (n:=n).
+        use_bst_iff_assumption.
+        propositional.
+        assumption. }
+      { propositional.
+        invert H0.
+        assumption. }
+    }
+  Qed.
+
+  Lemma d_lt_rightmost : forall tr s n d,
+      bst tr s
+      -> rightmost tr = Some n
+      -> node_value tr = Some d
+      -> d <= n.
+  Proof.
+    intros.
+    induct tr; simplify.
+    { invert H0. }
+    { propositional.
+      cases (rightmost tr2); cases (node_value tr2); simplify.
+      { apply node_value_bst with (s:=(fun x : t => s x /\ d < x)) in Heq0.
+        apply IHtr2 with (n:=n0) (d:=n1) in H4.
+        invert H0; invert H1.
+        linear_arithmetic.
+        equality.
+        equality.
+        assumption. }
+      { cases tr2; simplify; discriminate. }
+      { cases tr2; simplify.
+        discriminate.
+        cases (rightmost tr2_2); discriminate. }
+      { invert H0; invert H1.
+        linear_arithmetic. }
+    }
+  Qed.
+
+  Lemma rightmost_max : forall tr s n,
+      bst tr s
+      -> rightmost tr = Some n
+      -> forall x, s x -> x <= n.
+  Proof.
+    intros.
+    induct tr; simplify.
+    { invert H0. }
+    { propositional.
+      cases (rightmost tr2); simplify.
+      { cases (compare x d); simplify.
+        { invert H0.
+          assert (d <= n).
+          apply d_lt_rightmost with (tr:=(Node d tr1 tr2)) (s:=s); simplify.
+          propositional.
+          rewrite Heq.
+          equality.
+          equality.
+          linear_arithmetic. }
+        { invert H0.
+          apply d_lt_rightmost with (tr:=(Node d tr1 tr2)) (s:=s); simplify.
+          propositional.
+          rewrite Heq.
+          equality.
+          equality. }
+        { apply IHtr2 with (s:=(fun x : t => s x /\ d < x)).
+          assumption.
+          equality.
+          propositional. }
+      }
+      { cases tr2; simplify.
+        invert H0.
+        cases (compare x n); try linear_arithmetic.
+        propositional.
+        exfalso.
+        apply H4 with (x); propositional.
+
+        propositional.
+        cases (rightmost tr2_2); invert Heq.
+      }
+    }
+  Qed.
+  
+  Lemma delete_rightmost_bst : forall tr s n,
+      bst tr s
+      -> rightmost tr = Some n
+      -> bst (delete_rightmost tr) (fun x : t => s x /\ x < n).
+  Proof.
+    intros.
+    induct tr; simplify.
+    { invert H0. }
+    { cases (rightmost tr2); simplify; propositional.
+      { cases (is_leaf tr2); simplify.
+        { cases tr2; simplify.
+          invert Heq.
+          invert Heq0. }
+        propositional.
+        invert H0.
+        cases (node_value tr2); simplify.
+        { apply rightmost_max with (x:=n0) (s:=(fun x : t => s x /\ d < x)) in Heq.
+          assert (d < n0).
+          { apply node_value_ordered with (tr:=(Node d tr1 tr2)) (s:=s).
+            simplify.
+            propositional.
+            equality.
+            equality. }
+          linear_arithmetic.
+          assumption.
+          apply node_value_bst with (d:=n0) in H3.
+          propositional.
+          equality. }
+        { cases tr2; simplify; discriminate. }
+        { use_bst_iff_assumption.
+          propositional.
+          assert (d <= n).
+          invert H0.
+          { apply d_lt_rightmost with (tr:=(Node d tr1 tr2)) (s:=s) (d:=d) (n:=n).
+            simplify; propositional.
+            simplify; rewrite Heq; equality.
+            simplify; equality. }
+          linear_arithmetic. }
+        { assert ((bst (delete_rightmost tr2) (fun x : t => (s x /\ d < x) /\ x < n))
+                  -> (bst (delete_rightmost tr2) (fun x : t => (s x /\ x < n) /\ d < x))).
+          { intros.
+            use_bst_iff_assumption.
+            propositional. }
+          apply H2.
+          apply IHtr2.
+          assumption.
+          assumption. }
+      }
+      { cases (is_leaf tr2); simplify.
+        use_bst_iff_assumption.
+        propositional.
+        cases (compare x n); invert H0; linear_arithmetic.
+        cases (compare x d); invert H0; linear_arithmetic.
+
+        propositional.
+        cases tr2; simplify.
+        discriminate.
+        cases (rightmost tr2_2); discriminate.
+        use_bst_iff_assumption.
+        propositional.
+        cases (compare x n); invert H0; linear_arithmetic.
+
+        cases tr2; simplify.
+        discriminate.
+        cases (rightmost tr2_2); discriminate. }
+    }
+  Qed.
+
+  Lemma bst_delete : forall tr s a,
+      bst tr s
+      -> bst (delete a tr) (fun x => s x /\ x <> a).
+  Proof.
+    intros.
+    induct tr; simplify.
+    { propositional.
+      apply (H x).
+      assumption. }
+    { cases (compare a d); simplify.
+      { propositional.
+        linear_arithmetic.
+        apply IHtr1 with (a:=a) in H.
+        use_bst_iff_assumption.
+        propositional.
+        use_bst_iff_assumption.
+        propositional.
+        linear_arithmetic. }
+      { propositional.
+        unfold merge_ordered.
+        cases (rightmost tr1); simplify.
+        { propositional.
+          { assert ((fun x : t => s x /\ x < d) n -> s n) by propositional.
+            remember (fun x : t => s x /\ x < d) as f.
+            apply H1.
+            apply rightmost_bst with (tr:=tr1).
+            assumption.
+            assumption. }
+          { apply rightmost_bst with (n:=n) in H.
+            linear_arithmetic.
+            assumption. }
+          { assert (rightmost tr1 = Some n) by assumption.
+            apply rightmost_bst with (s:=(fun x : t => s x /\ x < d)) in Heq.
+            apply delete_rightmost_bst with (n:=n) in H.
+            use_bst_iff_assumption.
+            propositional.
+            linear_arithmetic.
+            linear_arithmetic.
+            assumption.
+            assumption. }
+          { use_bst_iff_assumption.
+            propositional.
+            linear_arithmetic.
+            apply rightmost_bst with (s:=(fun x : t => s x /\ x < d)) in Heq.
+            linear_arithmetic.
+            assumption.
+            cases (compare d x).
+            linear_arithmetic.
+            linear_arithmetic.
+            apply rightmost_max with (n:=n) (x:=x) in H.
+            linear_arithmetic.
+            assumption.
+            propositional. }
+        }
+        { use_bst_iff_assumption.
+          propositional.
+          linear_arithmetic.
+          cases tr1; simplify.
+          2: { cases (rightmost tr1_2); discriminate. }
+          propositional.
+          cases (compare d x).
+          linear_arithmetic.
+          linear_arithmetic.
+          exfalso.
+          apply (H x).
+          propositional. }
+      }
+      { propositional.
+        linear_arithmetic.
+        use_bst_iff_assumption.
+        propositional.
+        linear_arithmetic.
+        assert (bst (delete a tr2) (fun x : t => (s x /\ d < x) /\ (x = a -> False))
+                -> bst (delete a tr2) (fun x : t => (s x /\ (x = a -> False)) /\ d < x)).
+        { intros.
+          use_bst_iff_assumption.
+          propositional. }
+        apply H1.
+        apply IHtr2.
+        assumption.
+      }
+    }
+  Qed.
+
+(* Great job! Now you have proven all tree-structure-manipulating operations
      necessary to implement a balanced binary search tree. Rebalancing heuristics
      that achieve worst-case-logarithmic running time maintain annotations on
      nodes of the tree (and decide to rebalance based on these). The implementation
