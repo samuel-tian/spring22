@@ -359,14 +359,45 @@ Inductive eval (phi: environment): valuation -> cmd -> valuation -> Prop :=
 As a sanity check, we can prove that the semantics is deterministic:
 |*)
 
-
 Lemma eval_deterministic :
   forall phi c v0 v1 v2,
     eval phi v0 c v1 ->
     eval phi v0 c v2 ->
     v1 = v2.
 Proof.
-Admitted.
+  simplify.
+  generalize dependent v2.
+  induct H; intros.
+  { invert H0; equality. }
+  { invert H0; equality. }
+  { invert H4.
+    rewrite H9 in H.
+    invert H.
+    apply IHeval in H14.
+    equality. }
+  { invert H1.
+    apply IHeval1 in H5.
+    subst.
+    apply IHeval2 in H7.
+    assumption. }
+  { invert H2.
+    apply IHeval.
+    assumption.
+    linear_arithmetic. }
+  { invert H1.
+    linear_arithmetic.
+    apply IHeval.
+    assumption. }
+  { invert H3.
+    apply IHeval1 in H9.
+    subst.
+    apply IHeval2 in H11.
+    assumption.
+    linear_arithmetic. }
+  { invert H0.
+    linear_arithmetic.
+    equality. }
+Qed.
 
 (*|
 Now let's check that our semantics compute the right values.  The `eval_intro`
@@ -550,20 +581,70 @@ Note that your optimization function should *not* be recursive!  We will
 implement repeated rule application later on top of your function.
 |*)
 
-Definition opt_binop_fold (b: BinopName) (e1 e2: expr) : expr.
-Admitted.
+Definition opt_binop_fold (b: BinopName) (e1 e2: expr) : expr :=
+  match b with
+  (* | LogAnd =>  *)
+  (* | Eq  *)
+  | ShiftLeft => match e2 with
+                | Const 0 => e1
+                | _ => Binop b e1 e2
+                end
+  | ShiftRight => match e2 with
+                 | Const 0 => e1
+                 | _ => Binop b e1 e2
+                 end
+  | Times => match e1, e2 with
+            | Const 0, _ => Const 0
+            | _, Const 0 => Const 0
+            | Const 1, _ => e2
+            | _, Const 1 => e1
+            | _, _ => Binop b e1 e2
+            end
+  | Divide => match e2 with
+             | Const 1 => e1
+             | _ => Binop b e1 e2
+             end
+  | Plus => match e1, e2 with
+           | Const 0, _ => e2
+           | _, Const 0 => e1
+           | _, _ => Binop b e1 e2
+           end
+  | Minus => match e2 with
+            | Const 0 => e1
+            | _ => Binop b e1 e2
+            end
+  (* | Modulo *)
+  | _ => Binop b e1 e2
+  end.
+
 Arguments opt_binop_fold !_ !_ !_ /. (* Coq magic *)
 
 Example opt_binop_fold_test1 :
   opt_binop_fold Plus "x" 0 = "x".
 Proof.
-Admitted.
+  equality.
+Qed.
+
+Ltac cases_any :=
+  match goal with
+  | [ |- context[match ?x with _ => _ end] ] => cases x
+  end.
 
 Lemma opt_binop_fold_sound : forall b e1 e2 v,
     interp_arith (opt_binop_fold b e1 e2) v =
     interp_binop b (interp_arith e1 v) (interp_arith e2 v).
 Proof.
-Admitted.
+  simplify.
+  induct e1; induct e2; cases b; simplify; try equality;
+    repeat match goal with
+           | [ |- context [match ?x with | _ => _ end ] ] => cases x
+           end; simplify; try linear_arithmetic.
+  Search (_ / 1).
+  symmetry; apply Nat.div_1_r.
+  all: try rewrite Heq; try equality; try linear_arithmetic.
+  symmetry; apply Nat.div_1_r.
+  symmetry; apply Nat.div_1_r.
+Qed.
 
 (*|
 Precomputation
@@ -579,15 +660,24 @@ Note that your optimization function should *not* be recursive!  We will
 implement repeated rule application later on top of your function.
 |*)
 
-Definition opt_binop_precompute (b: BinopName) (e1 e2: expr) : expr.
-Admitted.
+Definition opt_binop_precompute (b: BinopName) (e1 e2: expr) : expr :=
+  match e1, e2 with
+  | Const x, Const y => interp_binop b x y
+  | _, _ => Binop b e1 e2
+  end.
+
 Arguments opt_binop_precompute !_ !_ !_ /. (* Coq magic *)
 
 Lemma opt_binop_precompute_sound : forall b e1 e2 v,
     interp_arith (opt_binop_precompute b e1 e2) v =
     interp_binop b (interp_arith e1 v) (interp_arith e2 v).
 Proof.
-Admitted.
+  simplify.
+  induct e1; induct e2; cases b; simplify;
+    repeat match goal with
+           | [ |- context [match ?x with | _ => _ end ] ] => cases x
+           end; simplify; try linear_arithmetic.
+Qed.
 
 (*|
 Optimizing power-of-2 operations
@@ -735,27 +825,65 @@ applies all optimizations that you implemented and proved (at least
 Mind the order in which the optimizations are applied!
 |*)
 
-Definition opt_arith (e: expr) : expr.
-Admitted.
+Fixpoint ropt_binop_fold (e : expr) : expr :=
+  match e with
+  | Binop b e1 e2 => opt_binop_fold b (ropt_binop_fold e1) (ropt_binop_fold e2)
+  | _ => e
+  end.
+
+Lemma ropt_binop_fold_sound : forall e v,
+    interp_arith (ropt_binop_fold e) v = interp_arith e v.
+Proof.
+  intros.
+  induct e; simplify.
+  { equality. }
+  { cases_any; equality. }
+  { rewrite opt_binop_fold_sound.
+    auto. }
+Qed.
+
+Fixpoint ropt_binop_precompute (e : expr) : expr :=
+  match e with
+  | Binop b e1 e2 => opt_binop_precompute b (ropt_binop_precompute e1) (ropt_binop_precompute e2)
+  | _ => e
+  end.
+
+Lemma ropt_binop_precompute_sound : forall e v,
+    interp_arith (ropt_binop_precompute e) v = interp_arith e v.
+Proof.
+  intros.
+  induct e; simplify.
+  { equality. }
+  { cases_any; equality. }
+  { rewrite opt_binop_precompute_sound.
+    auto. }
+Qed.
+
+Definition opt_arith (e: expr) : expr :=
+  ropt_binop_fold (ropt_binop_precompute e).
+
 Arguments opt_arith !e /. (* Coq magic *)
 
 Example opt_arith_fold_test1 :
   opt_arith (1 + "z" * ("y" * ("x" * (0 + 0 / 1))))%expr =
   (1)%expr.
 Proof.
-Admitted.
+  equality.
+Qed.
 
 Example opt_arith_precompute_test1:
   opt_arith (("x" + (3 - 3)) / (0 + 1) + ("y" + "y" * 0))%expr =
   ("x" + "y")%expr.
 Proof.
-Admitted.
+  equality.
+Qed.
 
 Example opt_arith_precompute_test2 :
   opt_arith ((("y" / ("x" * 0 + 7 / 1)) mod (12 - 5)) / (2 * 3))%expr =
   (("y" / 7) mod 7 / 6)%expr.
 Proof.
-Admitted.
+  equality.
+Qed.
 
 Example opt_arith_log2_test1 :
   opt_arith (("y" * 8) mod 8 / 4)%expr =
@@ -786,7 +914,15 @@ Lemma opt_arith_sound : forall e v,
     interp_arith (opt_arith e) v =
     interp_arith e v.
 Proof.
-Admitted.
+  intros.
+  induct e.
+  { equality. }
+  { simplify. cases_any; equality. }
+  { unfold opt_arith.
+    rewrite ropt_binop_fold_sound.
+    rewrite ropt_binop_precompute_sound.
+    auto. }
+Qed.
 
 (*|
 Optional: cost modeling
@@ -835,21 +971,32 @@ which we remove instances of `Skip`.  The following helper function might be use
 Definition is_skip (c: cmd) : sumbool (c = Skip) (c <> Skip) :=
   ltac:(cases c; econstructor; equality).
 
-Fixpoint opt_unskip (c: cmd) : cmd.
-Admitted.
+Fixpoint opt_unskip (c: cmd) : cmd :=
+  match c with
+  | Sequence c1 c2 => match (opt_unskip c1), (opt_unskip c2) with
+                     | Skip, c' => c'
+                     | c', Skip => c'
+                     | c', c'' => Sequence c' c''
+                     end
+  | If e c1 c2 => If e (opt_unskip c1) (opt_unskip c2)
+  | While e c' => While e (opt_unskip c')
+  | _ => c
+  end.
 
 Example opt_unskip_test1 :
   opt_unskip (Skip;; (Skip;; Skip);; (Skip;; Skip;; Skip)) =
   Skip.
 Proof.
-Admitted.
+  equality.
+Qed.
 
 Example opt_unskip_test2 :
   opt_unskip (when 0 then (Skip;; Skip) else Skip done;;
               while 0 loop Skip;; Skip done;; Skip) =
   (when 0 then Skip else Skip done;; while 0 loop Skip done).
 Proof.
-Admitted.
+  equality.
+Qed.
 
 (*|
 Now let's prove this optimization correct.  The following two lemmas and the
@@ -903,7 +1050,19 @@ Lemma opt_unskip_sound phi : forall c v v',
     eval phi v c v' ->
     eval phi v (opt_unskip c) v'.
 Proof.
-Admitted.
+  intros.
+  induct H; simplify.
+  { constructor. }
+  { constructor.
+    assumption. }
+  { econstructor; eauto. }
+  { repeat cases_any; eval_elim; try assumption;
+      repeat (econstructor; eauto). }
+  { econstructor; eauto. }
+  { apply EvalIfFalse; assumption. }
+  { econstructor; eauto. }
+  { eapply EvalWhileFalse; assumption. }
+Qed.
 
 (*|
 Constant propagation
@@ -928,8 +1087,15 @@ Since there are no assignments in expressions, this is just a matter of
 substituting known values recursively:
 |*)
 
-Fixpoint opt_arith_constprop (c: expr) (consts: valuation) {struct c} : expr.
-Admitted.
+Fixpoint opt_arith_constprop (c: expr) (consts: valuation) {struct c} : expr :=
+  match c with
+  | Const _ => c
+  | Var x => match (consts $? x) with
+            | Some c' => Const c'
+            | _ => c
+            end
+  | Binop b c1 c2 => Binop b (opt_arith_constprop c1 consts) (opt_arith_constprop c2 consts)
+  end.
 
 (*|
 What is the correctness criterion for constant propagation?  The environment of
@@ -945,7 +1111,26 @@ Lemma opt_arith_constprop_sound : forall e v consts,
     interp_arith (opt_arith_constprop e consts) v =
     interp_arith e v.
 Proof.
-Admitted.
+  intros.
+  induct e; simplify.
+  { equality. }
+  { repeat cases_any; simplify.
+    Search "$<=" "$?".
+    apply includes_lookup with (m':=v) in Heq.
+    equality.
+    assumption.
+    apply includes_lookup with (m':=v) in Heq.
+    equality.
+    assumption.
+    rewrite Heq0.
+    equality.
+    rewrite Heq0.
+    equality. }
+  { auto. }
+Qed.
+
+Local Hint Resolve opt_arith_constprop_sound : core.
+Local Hint Rewrite opt_arith_constprop_sound : push.
 
 (*|
 We can now define constant propagation on commands.  Propagating constants
@@ -971,16 +1156,46 @@ example).  But in fact, the assignment *should be kept*: it's not safe to remove
 the assignment entirely — can you see why?
 |*)
 
+(* HINT 1-2 (see Pset6Sig.v) *)
 
-(* HINT 1-2 (see Pset6Sig.v) *) 
-Definition opt_constprop (c: cmd) : cmd.
-Admitted.
+Definition as_const (e: expr) : option nat :=
+  match e with
+  | Const n => Some n
+  | _ => None
+  end.
+
+Fixpoint ropt_constprop (c: cmd) (consts: valuation) {struct c} : cmd * valuation :=
+  match c with
+  | Skip => (c, consts)
+  | Assign x e => let e' := (opt_arith_constprop e consts) in
+                 match (as_const e') with
+                 | Some n => (Assign x e', consts $+ (x, n))
+                 | _ => (Assign x e', consts $- x)
+                 end
+  | AssignCall x f e1 e2 => (c, consts $- x)
+  | Sequence c1 c2 => let cv' := (ropt_constprop c1 consts) in
+                     let c' := fst cv' in
+                     let v' := snd cv' in
+                     let cv'' := ropt_constprop c2 v' in
+                     (Sequence c' (fst cv''), snd cv'')
+  | If e c1 c2 => (If (opt_arith_constprop e consts)
+                     (fst (ropt_constprop c1 consts))
+                     (fst (ropt_constprop c2 consts)), $0)
+  | While e c => (While e (fst (ropt_constprop c $0)), $0)
+  end.
+
+Definition opt_constprop (c: cmd) : cmd :=
+  fst (ropt_constprop c $0).
+
 Arguments opt_constprop !_ /. (* Coq magic *)
 
 Example opt_constprop_test1 :
   opt_constprop FactBody = FactBody.
 Proof.
-Admitted.
+  unfold FactBody.
+  simplify.
+  equality.
+Qed.
 
 Example opt_constprop_test2 :
   opt_constprop ("x" <- 7;; "y" <- "x";;
@@ -998,14 +1213,84 @@ Example opt_constprop_test2 :
   done;;
   "r" <- "z").
 Proof.
-Admitted.
+  simplify.
+  equality.
+Qed.
 
+Lemma includes_remove_add (consts v: valuation) x n:
+  consts $<= v ->
+  consts $- x $<= v $+ (x, n).
+Proof.
+  simplify; apply includes_intro; simplify.
+  cases (x ==v k); subst; simplify; try equality.
+  eauto using includes_lookup.
+Qed.
+
+Local Hint Resolve includes_remove_add : core.
+Local Hint Resolve empty_includes : core.
+
+Lemma ropt_consts_subset phi : forall c v v' consts,
+    consts $<= v ->
+    eval phi v c v' ->
+    snd (ropt_constprop c consts) $<= v'.
+Proof.
+  intros.
+  generalize dependent consts.
+  induct H0; simplify; eauto.
+  { cases_any; simplify.
+    unfold as_const in Heq.
+    rewrite <- opt_arith_constprop_sound with (consts:=consts) in H.
+    cases (opt_arith_constprop e consts); simplify.
+    { invert Heq.
+      Search "$<=".
+      eauto. }
+    { discriminate. }
+    discriminate.
+    assumption.
+    eauto.
+  }
+Qed.
+
+Local Hint Resolve ropt_consts_subset : core.
+
+Ltac t := match goal with
+          | [ |- eval _ _ ?body _ ] =>
+              match body with
+              | Sequence _ _ => eapply EvalSequence
+              | If _ _ _ =>
+                  subst; match goal with
+                         | [ H : _ <> 0 |- _ ] => eapply EvalIfTrue
+                         | _ => eapply EvalIfFalse
+                         end; autorewrite with push
+              | While _ _ =>
+                  subst; match goal with
+                         | [ H : _ <> 0 |- _ ] => eapply EvalWhileTrue
+                         | _ => eapply EvalWhileFalse
+                         end; autorewrite with push
+              end
+          end; eauto.
+
+Lemma opt_constprop_sound' phi : forall c v v' consts,
+    consts $<= v ->
+    eval phi v c v' ->
+    eval phi v (fst (ropt_constprop c consts)) v'.
+Proof.
+  intros.
+  generalize dependent consts.
+  induct H0; simplify; try t.
+  { constructor. }
+  { rewrite <- H.
+    cases_any; simplify; constructor; eauto. }
+  { econstructor; eauto. }
+Qed.
 
 Lemma opt_constprop_sound phi : forall c v v',
     eval phi v c v' ->
     eval phi v (opt_constprop c) v'.
 Proof.
-Admitted.
+  intros.
+  apply opt_constprop_sound'; eauto.
+Qed.
 
 (*|
 Loop unrolling
