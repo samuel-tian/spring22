@@ -6,7 +6,7 @@ Require Import Pset7Sig.
 (* The following line forces you to use bullets or braces.  Remove it if you get
    errors like "Expected a single focused goal but 2 goals are focused." and you
    don't want to structure your proofs. *)
-Set Default Goal Selector "!".
+(* Set Default Goal Selector "!". *)
 Set Implicit Arguments.
 
 Module Impl.
@@ -203,6 +203,8 @@ Inductive hasty : fmap var type -> exp -> type -> Prop :=
     hasty G e t
 .
 
+Local Hint Constructors exp value context plug step0 step type subtype proj_t hasty : core.
+
 (* Before we get started proving properties of our type system, please read
  * Pset7Sig.v and consider the questions below. This task is
  * ungraded, but we are assigning it in hopes it helps you complete the
@@ -251,12 +253,69 @@ Inductive hasty : fmap var type -> exp -> type -> Prop :=
 
 Lemma subtype_refl : forall t1, t1 $<: t1.
 Proof.
-Admitted.
+  intros.
+  induct t1; simplify;
+    constructor; eauto.
+Qed.
 
-(* HINT 1 (see Pset7Sig.v) *) 
+(* HINT 1 (see Pset7Sig.v) *)
+
+Definition P t1 t2 := (forall t3, t2 $<: t3 -> t1 $<: t3) /\
+                        (forall t3, t3 $<: t1 -> t3 $<: t2).
+
+Lemma subtype_trans_aux : forall t1 t2,
+    t1 $<: t2 -> P t1 t2.
+Proof.
+  intros.
+  induct H; unfold P; simplify.
+  { unfold P in *; propositional.
+    { invert H5.
+      constructor; eauto. }
+    { invert H5.
+      constructor; eauto. }
+  }
+  { propositional. }
+  { propositional.
+    { invert H.
+      eauto. }
+    { invert H.
+      eauto. }
+  }
+  { unfold P in *.
+    propositional.
+    { invert H5.
+      { eauto. }
+      { constructor; eauto. }
+    }
+    { invert H5.
+      eauto. }
+  }
+Qed.
+
 Lemma subtype_trans : forall t1 t2 t3, t1 $<: t2 -> t2 $<: t3 -> t1 $<: t3.
 Proof.
-Admitted.
+  intros.
+  generalize dependent t3.
+  induct H; simplify.
+  
+  { invert H1.
+    constructor.
+    { apply subtype_trans_aux in H4, H6.
+      unfold P in *.
+      propositional.
+      eauto. }
+    { apply subtype_trans_aux in H4, H6.
+      unfold P in *.
+      propositional.
+      eauto. }
+  }
+  { assumption. }
+  { invert H0.
+    auto. }
+  { invert H1; eauto. }
+Qed.
+
+Local Hint Resolve subtype_refl subtype_trans : core.
 
 (* BEGIN handy tactic that we suggest for these proofs *)
 Ltac tac0 :=
@@ -292,14 +351,216 @@ Ltac tac := simplify; subst; propositional; repeat (tac0; simplify); try equalit
  * they could be solved from scratch with a good understanding of the lecture
  * material. *)
 
-(* HINT 2-3 (see Pset7Sig.v) *) 
+(* HINT 2-3 (see Pset7Sig.v) *)
+
+Lemma progress_abs : forall e t1 t2,
+  hasty $0 e (Fun t1 t2)
+  -> value e
+  -> exists x e', e = Abs x e'.
+Proof.
+  intros.
+  induct H; tac.
+  { eauto. }
+  { invert H1. }
+  { invert H1. }
+  { eauto. }
+Qed.
+
+Local Hint Resolve progress_abs : core.
+
+Lemma progress_tuplecons : forall e t1 t2,
+  hasty $0 e (TupleTypeCons t1 t2)
+  -> value e
+  -> exists e1 e2, e = TupleCons e1 e2.
+Proof.
+  intros.
+  induct H; tac.
+  { invert H1. }
+  { eauto. }
+  { invert H1. }
+  { eauto. }
+Qed.
+
+Local Hint Resolve progress_tuplecons : core.
+
+Lemma progress : forall e t,
+    hasty $0 e t
+    -> value e
+      \/ (exists e' : exp, step e e').
+Proof.
+  intros.
+  induct H; tac.
+  { eauto. }
+  { right.
+    apply progress_abs in H.
+    cases H.
+    cases H.
+    subst.
+    eauto.
+    eauto. }
+  { right; eauto. }
+  { right; eauto. }
+  { right; eauto. }
+  { eauto. }
+  { eauto. }
+  { right; eauto. }
+  { right; eauto. }
+  { right; eauto. }
+  { right.
+    invert H0.
+    { apply progress_tuplecons in H.
+      tac.
+      invert H1.
+      exists x.
+      econstructor; eauto.
+      eauto. }
+    { apply progress_tuplecons in H.
+      tac.
+      invert H1.
+      exists (Proj x0 n0).
+      econstructor; eauto.
+      assumption. }
+  }
+  { right; eauto. }
+Qed.
+
+Local Hint Resolve progress : core.
+
+Lemma weakening : forall G e t,
+    hasty G e t
+    -> forall G', (forall x t, G $? x = Some t -> G' $? x = Some t)
+            -> hasty G' e t.
+Proof.
+  intros.
+  generalize dependent G'.
+  induct H; eauto.
+  { constructor.
+    apply IHhasty.
+    intros.
+    cases (x ==v x0); simplify.
+    { assumption. }
+    { apply H0; assumption. }
+  }
+Qed.
+
+Local Hint Resolve weakening : core.
+
+Lemma substitution : forall G x t' e t e',
+    hasty (G $+ (x, t')) e t
+    -> hasty $0 e' t'
+    -> hasty G (subst e' x e) t.
+Proof.
+  induct 1; simplify; eauto.
+  { cases (x0 ==v x); simplify.
+    { econstructor; eauto.
+      invert H.
+      eauto. }
+    { econstructor; eauto. }
+  }
+  { tac.
+    constructor.
+    assert (G $+ (x, t') $+ (x, t1) = G $+ (x, t1)) by maps_equal.
+    rewrite H1 in H.
+    assumption.
+
+    constructor.
+    eauto. }
+Qed.
+
+Local Hint Resolve substitution : core.
+
+Lemma hasty_abs G x e1 t:
+  hasty G (Abs x e1) t ->
+  exists t1 t2, hasty (G $+ (x, t1)) e1 t2 /\ Fun t1 t2 $<: t.
+Proof.
+  induct 1; simplify; eauto.
+  tac.
+  eauto 7.
+Qed.
+
+Local Hint Resolve hasty_abs : core.
+
+Lemma hasty_app : forall G e1 e2 t,
+    hasty G (App e1 e2) t ->
+    exists t1 t2, hasty G e1 (Fun t1 t2) /\ hasty G e2 t1 /\ t2 $<: t.
+Proof.
+  induct 1; simplify; eauto.
+  tac.
+  eauto 6.
+Qed.
+
+Local Hint Resolve hasty_app : core.
+
+Lemma hasty_tuplecons G e e' t:
+   hasty G (TupleCons e e') t ->
+   exists t1 t2, hasty G e t1 /\ hasty G e' t2 /\ TupleTypeCons t1 t2 $<: t.
+Proof.
+  induct 1; simplify; eauto.
+  tac.
+  exists x.
+  exists x0.
+  propositional.
+  eauto.
+Qed.
+
+Local Hint Resolve hasty_tuplecons : core.
+
+Lemma hasty_proj : forall G e n t,
+  hasty G (Proj e n) t ->
+  exists t1 t2, hasty G e t1 /\ proj_t t1 n t2 /\ t2 $<: t.
+Proof.
+  induct 1; simplify; eauto.
+  tac.
+  exists x.
+  exists x0.
+  propositional.
+  eauto.
+Qed.
+
+Local Hint Resolve hasty_proj : core.
+
+Ltac hasty_simpl :=
+  repeat match goal with
+         | [ H : hasty _ (App _ _) _ |- _ ] => eapply hasty_app in H; tac
+         | [ H : hasty _ (Abs _ _) _ |- _ ] => eapply hasty_abs in H; tac
+         | [ H : hasty _ (Proj _ _) _ |- _ ] => eapply hasty_proj in H; tac
+         | [ H : hasty _ (TupleCons _ _) _ |- _ ] => eapply hasty_tuplecons in H; tac
+         end.
+
+Lemma preservation : forall e1 e2,
+    step e1 e2
+    -> forall t, hasty $0 e1 t
+      -> hasty $0 e2 t.
+Proof.
+  intros.
+  invert H.
+  invert H3; simplify.
+  { generalize dependent e2.
+    generalize dependent t.
+    induct H1; simplify; hasty_simpl; eauto. }
+  { generalize dependent e2.
+    generalize dependent t.
+    induct H1; simplify; hasty_simpl; eauto. }
+  { generalize dependent e2.
+    generalize dependent t.
+    induct H1; simplify; hasty_simpl; eauto. }
+Qed.
+
+Local Hint Resolve preservation : core.
+
 Theorem safety :
   forall e t,
     hasty $0 e t -> invariantFor (trsys_of e)
-                                 (fun e' => value e'
-                                            \/ exists e'', step e' e'').
+                                (fun e' => value e'
+                                        \/ exists e'', step e' e'').
 Proof.
-Admitted.
+  simplify.
+  apply invariant_weaken with (invariant1 := fun e' => hasty $0 e' t).
+  apply invariant_induction; simplify.
+  equality.
+  eauto.
+  eauto.
+Qed.
 
 End Impl.
 
