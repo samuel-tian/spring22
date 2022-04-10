@@ -252,7 +252,277 @@ Definition same_public_state pub (v1 v2: valuation) :=
 
  *)
 
-(* HINT 1-2 (see Pset8Sig.v) *) 
+(* HINT 1-2 (see Pset8Sig.v) *)
+
+Lemma restrict_ne : forall (pub : set var) (v : valuation) x k,
+    ~ x \in pub ->
+            restrict pub (v $+ (x, k)) = restrict pub v.
+Proof.
+  intros.
+  maps_equal.
+  excluded_middle (k0 \in pub); simplify.
+  { rewrite !lookup_restrict_true; sets.
+    cases (k0 ==v x); simplify; equality. }
+  { rewrite !lookup_restrict_false; sets. }
+Qed.
+
+Lemma restrict_not_equal : forall (pub : set var) (v : valuation) x k e,
+    x <> k ->
+    restrict pub (v $+ (x, e)) $? k = restrict pub v $? k.
+Proof.
+  intros.
+  excluded_middle (k \in pub); simplify.
+  { rewrite !lookup_restrict_true; eauto.
+    simplify.
+    equality. }
+  { rewrite !lookup_restrict_false; eauto. }
+Qed.
+
+Lemma restrict_lookup : forall (pub : set var) (v : valuation) x n,
+    restrict pub v $? x = Some n ->
+    v $? x = Some n.
+Proof.
+  intros.
+  excluded_middle (x \in pub); simplify.
+  { sets.
+    rewrite <- H.
+    symmetry.
+    apply lookup_restrict_true.
+    assumption. }
+  { sets.
+    apply lookup_restrict_true_fwd in H.
+    propositional. }
+Qed.
+
+Lemma restrict_none : forall (pub : set var) (v : valuation) x,
+    restrict pub v $? x = None ->
+    x \in pub ->
+    v $? x = None.
+Proof.
+  intros.
+  sets.
+  rewrite <- H.
+  symmetry.
+  apply lookup_restrict_true.
+  assumption.
+Qed.
+Local Hint Resolve restrict_lookup restrict_none : core.
+
+Lemma restrict_subseteq : forall (pub : set var) (v1 v2 : valuation) e,
+    vars e \subseteq pub ->
+    restrict pub v1 = restrict pub v2 ->
+    interp e v1 = interp e v2.
+Proof.
+  intros.
+  assert (forall k, restrict pub v1 $? k = restrict pub v2 $? k) by equality.
+  induct e; simplify; try equality.
+  { specialize (H1 x).
+    cases (restrict pub v1 $? x); simplify.
+    { apply restrict_lookup in Heq.
+      symmetry in H1.
+      apply restrict_lookup in H1.
+      rewrite Heq.
+      rewrite H1.
+      equality. }
+    { sets.
+      apply restrict_none in Heq; sets.
+      symmetry in H1.
+      apply restrict_none in H1; sets.
+      rewrite Heq.
+      rewrite H1.
+      equality. }
+  }
+  { cases b; simplify;
+      rewrite IHe1; sets;
+      rewrite IHe2; sets. }
+Qed.
+Local Hint Resolve restrict_subseteq : core.
+
+Ltac t := repeat match goal with
+                 | [ H : eval _ _ _ |- _ ] => invert1 H
+                 end.
+
+Ltac dup H := match type of H with
+              | ?X => assert (X) by assumption
+              end.
+
+Lemma no_public_assignments :
+  forall pub pc v v' c,
+    ~ pc \subseteq pub ->
+    Confidential pub pc c ->
+    eval v c v' ->
+    same_public_state pub v v'.
+Proof.
+  intros.
+  unfold same_public_state in *.
+  
+  generalize dependent v.
+  generalize dependent v'.
+  generalize dependent pub.
+  generalize dependent pc.
+    
+  induct c; simplify; t.
+  { equality. }
+  { invert H0.
+    rewrite !restrict_ne; eauto.
+    propositional. }
+  { invert H0.
+    dup H.
+    apply IHc1 with (v:=v) (v':=v1) in H; eauto.
+    apply IHc2 with (v:=v1) (v':=v') in H0; eauto.
+    rewrite H.
+    assumption. }
+  { invert H0.
+    invert H1;
+      assert (~ pc \cup vars e \subseteq pub) by sets; eauto. }
+  { dup H0.
+    invert H0.
+    induct H1; simplify; try equality.
+    { assert (restrict pub v = restrict pub v').
+      { eapply IHc.
+        2: eauto.
+        sets.
+        eauto. }
+      assert (restrict pub v' = restrict pub v'').
+      { assert ({ } \cup (pc \cup vars e) = (pc \cup vars e)) by sets.
+        rewrite H3 in H5.
+        eauto. }
+      rewrite H1.
+      assumption.
+    }
+  }
+Qed.
+Local Hint Resolve no_public_assignments : core.
+
+Lemma non_interference_gen :
+  forall pub pc c v1 v1' v2 v2',
+    eval v1 c v1' ->
+    eval v2 c v2' ->
+    Confidential pub pc c ->
+    same_public_state pub v1 v2 ->
+    same_public_state pub v1' v2'.
+Proof.
+  simplify.
+  unfold same_public_state in *.
+  
+  generalize dependent v1.
+  generalize dependent v1'.
+  generalize dependent v2.
+  generalize dependent v2'.
+  generalize dependent pub.
+  generalize dependent pc.
+
+  induct c; simplify; t.
+  { eauto. }
+  { invert H1.
+    rewrite !restrict_ne; eauto.
+
+    assert (interp e v1 = interp e v2) by eauto.
+    rewrite H.
+    maps_equal.
+    cases (x ==v k); sets; simplify.
+    { excluded_middle (k \in pub); simplify.
+      { rewrite !lookup_restrict_true; eauto.
+        simplify.
+        equality. }
+      { rewrite !lookup_restrict_false; eauto. }
+    }
+    { excluded_middle (k \in pub); simplify.
+      { rewrite !lookup_restrict_true; eauto.
+        simplify.
+        assert (restrict pub v1 $? k = restrict pub v2 $? k) by equality.
+        rewrite !lookup_restrict_true in H1; eauto. }
+      { rewrite !lookup_restrict_false; eauto. }
+    }
+  }
+  { invert H1.
+    eauto. }
+  { invert H1.
+    invert H; invert H0; simplify.
+    { eauto. }
+    { assert (~ pc \cup vars e \subseteq pub).
+      { propositional.
+        assert (vars e \subseteq pub) by sets.
+        assert (interp e v1 = interp e v2) by eauto.
+        linear_arithmetic. }
+      assert (same_public_state pub v1 v1') by eauto.
+      assert ({ } \cup (pc \cup vars e) = (pc \cup vars e)) by sets.
+      rewrite H1 in H8.
+      assert (same_public_state pub v2 v2') by eauto.
+      unfold same_public_state in *.
+      rewrite <- H0.
+      rewrite <- H3.
+      assumption. }
+    { assert (~ pc \cup vars e \subseteq pub).
+      { propositional.
+        assert (vars e \subseteq pub) by sets.
+        assert (interp e v1 = interp e v2) by eauto.
+        linear_arithmetic. }
+      assert (same_public_state pub v2 v2') by eauto.
+      assert ({ } \cup (pc \cup vars e) = (pc \cup vars e)) by sets.
+      rewrite H1 in H8.
+      assert (same_public_state pub v1 v1') by eauto.
+      unfold same_public_state in *.
+      rewrite <- H0.
+      rewrite <- H3.
+      assumption. }
+    { eauto. }
+  }
+  { generalize dependent v2.
+    generalize dependent v2'.
+
+    dup H1.
+    invert H1.
+    dup H.
+    induct H; simplify.
+    { dup H5.
+      induct H5; simplify.
+      { assert (restrict pub v' = restrict pub v'0) by eauto.
+        eapply IHeval2.
+        7: eauto.
+        all: eauto.
+        replace (pc \cup vars e) with ({ } \cup (pc \cup vars e)) by sets.
+        assumption. }
+      { assert (restrict pub v = restrict pub v').
+        { eapply no_public_assignments.
+          3: eauto.
+          2: eauto.
+          propositional.
+          assert (interp e v = interp e v0).
+          { eapply restrict_subseteq.
+            assert (vars e \subseteq pub) by sets.
+            eauto.
+            eauto. }
+          linear_arithmetic.
+        }
+        eapply IHeval2; eauto.
+        replace (pc \cup vars e) with ({ } \cup (pc \cup vars e)) by sets.
+        eauto.
+        rewrite <- H8.
+        assumption. }
+    }
+    { dup H2.
+      induct H2; simplify.
+      { assert (restrict pub v0 = restrict pub v').
+        { eapply no_public_assignments.
+          3: eauto.
+          2: eauto.
+          propositional.
+          assert (interp e v = interp e v0).
+          { eapply restrict_subseteq.
+            assert (vars e \subseteq pub) by sets.
+            eauto.
+            eauto. }
+          linear_arithmetic.
+        }
+        eapply IHeval2; eauto.
+        rewrite <- H6.
+        assumption. }
+      { eauto. }
+    }
+  }
+Qed.
+
 Theorem non_interference :
   forall pub c v1 v1' v2 v2',
     eval v1 c v1' ->
@@ -261,7 +531,9 @@ Theorem non_interference :
     same_public_state pub v1 v2 ->
     same_public_state pub v1' v2'.
 Proof.
-Admitted.
+  simplify.
+  eapply non_interference_gen; eauto.
+Qed.
 
 (*|
 Congratulations, you have proved that our type system is *sound*: it catches all leaky programs!  But it is not *complete*: there are some good programs that it rejects, too.  In other words, it *overapproximates* the set of unsafe programs.
@@ -269,11 +541,22 @@ Congratulations, you have proved that our type system is *sound*: it catches all
 Can you give an example of a safe program (a program that does not leak data) that our system would reject?
 |*)
 
-Definition tricky_example : cmd. Admitted.
+Definition tricky_example : cmd :=
+  "x" <- "a";; "x" <- 1.
 
 Lemma tricky_rejected : ~ Confidential pub_example {} tricky_example.
 Proof.
-Admitted.
+  unfold tricky_example.
+  unfold pub_example.
+  propositional.
+  invert H.
+  invert H3.
+  sets.
+  simplify.
+  sets.
+  specialize (H2 "a").
+  propositional; discriminate.
+Qed.
 
 Lemma tricky_confidential :
   forall v1 v1' v2 v2',
@@ -282,7 +565,33 @@ Lemma tricky_confidential :
     same_public_state pub_example v1 v2 ->
     same_public_state pub_example v1' v2'.
 Proof.
-Admitted.
+  simplify.
+  unfold tricky_example in *.
+  unfold pub_example in *.
+  unfold same_public_state in *.
+  repeat match goal with
+         | [ H : eval _ _ _ |- _ ] => invert1 H
+         end; simplify.
+  assert (v1 $+ ("x", match v1 $? "a" with
+                 | Some n => n
+                 | None => 0
+                      end) $+ ("x", 1) = v1 $+ ("x", 1)) by maps_equal.
+  rewrite H.
+  assert (v2 $+ ("x", match v2 $? "a" with
+                 | Some n => n
+                 | None => 0
+                      end) $+ ("x", 1) = v2 $+ ("x", 1)) by maps_equal.
+  rewrite H0.
+  maps_equal.
+  assert (restrict {"x", "y", "z"} v1 $? k = restrict {"x", "y", "z"} v2 $? k) by equality.
+  excluded_middle (k \in {"x", "y", "z"}).
+  { rewrite !lookup_restrict_true in H2; sets.
+    rewrite !lookup_restrict_true; sets; simplify; equality.
+    rewrite !lookup_restrict_true; sets; simplify; equality.
+    rewrite !lookup_restrict_true; sets; simplify; equality. }
+  { rewrite !lookup_restrict_false; sets. }
+Qed.
+
 End Impl.
 
 Module ImplCorrect : Pset8Sig.S := Impl.
