@@ -329,6 +329,8 @@ Ltac autosolve_t :=
   | [ H : ?E = ?E |- _ ] => clear H
   | [ H : ?E <= ?E |- _ ] => clear H
   | _ => progress subst
+
+  | [ _ : _ |- context[Init.Nat.max ?a ?b] ] => destruct (a <= b); try discriminate
   end.
 
 Ltac autosolve :=
@@ -475,13 +477,28 @@ Definition max3_spec (tr: trace): Prop :=
   exists x y z,
     tr = [Out (max x (max y z)); In z; In y; In x].
 
+Local Hint Unfold max3_spec : core.
+Local Hint Resolve Nat.max_l Nat.max_r : core.
+
+Ltac t := cbv beta; propositional; subst;
+          repeat match goal with
+                 | [ H : ex _ |- _ ] => invert H; propositional; subst
+                 end;
+          simplify;
+          repeat match goal with
+                 | [ _ : context[?a <=? ?b] |- _ ] => destruct (a <=? b); try discriminate
+                 | [ H : ?E = ?E |- _ ] => clear H
+                 end; simplify; propositional; auto; try equality; try linear_arithmetic.
+
 Theorem max3_ok:
   <{ fun/inv tr _ _ => tr = [] }>
   max3
   <{ fun/inv tr' _ _ => max3_spec tr' }>.
 Proof.
-Admitted.
-
+  ht; exists x8; exists x5; exists x2;
+    f_equal; f_equal; linear_arithmetic.
+Qed.
+  
 (*|
 Euclidian Algorithm for GCD
 ---------------------------
@@ -495,6 +512,8 @@ proof go through.
 
 |*)
 
+(* Local Hint Rewrite Nat.gcd_comm Nat.gcd_sub_diag_r Nat.gcd_diag : core. *)
+            
 Example euclidean_algorithm a b inv :=
   ("a_orig" <- Const a;;
    "b_orig" <- Const b;;
@@ -512,10 +531,26 @@ Example euclidean_algorithm a b inv :=
    output "a")%cmd.
 
 Definition euclidean_algorithm_invariant (a b : nat) : assertion :=
-   fun/inv _ _ _ => True.
+  fun/inv tr _ v => (Nat.gcd (v $! "a") (v $! "b") = Nat.gcd a b /\
+                    tr = []).
 
 Local Hint Unfold euclidean_algorithm_invariant : core.
 
+Local Hint Rewrite Nat.gcd_sub_diag_r Nat.gcd_diag : core.
+Local Hint Resolve Nat.divide_refl Nat.divide_factor_l Nat.divide_factor_r Nat.divide_sub_r : core.
+Local Hint Resolve Nat.gcd_divide_r Nat.gcd_divide_l : core.
+
+Lemma gcd_sub_diag_l : forall n m : nat,
+    m <= n -> Nat.gcd (n - m) m = Nat.gcd n m.
+Proof.
+  simplify.
+  rewrite Nat.gcd_comm.
+  rewrite (Nat.gcd_comm n m).
+  apply Nat.gcd_sub_diag_r.
+  assumption.
+Qed.
+Local Hint Rewrite gcd_sub_diag_l.
+  
 (* HINT 1 (see Pset9Sig.v) *) 
 Theorem euclidean_algorithm_ok : forall a b,
     <{ fun/inv tr h v =>
@@ -526,7 +561,12 @@ Theorem euclidean_algorithm_ok : forall a b,
          v $! "a" = v $! "b"
          /\ exists d, tr = [Out d]/\ Nat.gcd a b = d }>.
 Proof.
-Admitted.
+  ht.
+  rewrite <- e in H.
+  rewrite Nat.gcd_diag in H.
+  exists (Nat.gcd a b).
+  equality.
+Qed.
 
 (*|
 Streaming Fibonacci sequence
@@ -567,7 +607,10 @@ Here's the definition of the loop invariant that you will have to modify to comp
 
 (* HINT 2 (see Pset9Sig.v) *) 
 Definition fibonacci_invariant (n: nat) : assertion :=
-   fun/inv _ _ _ => True.
+  fun/inv tr _ v =>
+    (fibonacci_spec tr) /\
+      (nth 0 tr (Out 0) = Out(v $! "y")) /\
+      (nth 1 tr (Out 0) = Out(v $! "x")).
 
 Local Hint Unfold fibonacci_invariant : core.
 Local Hint Constructors fibonacci_spec : core.
@@ -577,7 +620,24 @@ Theorem fibonacci_ok (n: nat):
   fibonacci n (fibonacci_invariant n)
   <{ fun/inv tr' _ _ => fibonacci_spec tr' }>.
 Proof.
-Admitted.
+  ht.
+  invert H; simplify.
+
+  rewrite H7.
+  rewrite H6.
+  constructor.
+  rewrite <- H7.
+  rewrite <- H6.
+  constructor.
+
+  rewrite H7.
+  rewrite H6.
+  constructor.
+  rewrite <- H7.
+  rewrite <- H6.
+  constructor.
+  assumption.
+Qed.
 
 (*|
 Streaming factorial
@@ -609,7 +669,11 @@ Inductive fact_spec : nat -> trace -> Prop :=
     fact_spec (S n) (Out (x * S n) :: Out x :: tr).
 
 Definition fact_invariant (n: nat) : assertion :=
-   fun/inv _ _ _ => True.
+  fun/inv tr _ v =>
+    (fact_spec (v $! "cnt") tr) /\
+      (nth 0 tr (Out 0) = Out(v $! "x")) /\
+      (v $! "n" = n) /\
+      (v $! "cnt" <= v $! "n").
 
 Local Hint Unfold fact_invariant : core.
 Local Hint Constructors fact_spec : core.
@@ -620,7 +684,18 @@ Theorem fact_ok (n: nat):
   fact (fact_invariant n)
   <{ fun/inv tr' _ _ => fact_spec n tr' }>.
 Proof.
-Admitted.
+  ht.
+
+  cases x; simplify.
+  { invert H. }
+  { subst.
+    constructor.
+    assumption. }
+
+  assert (v $! "n" = v $! "cnt") by linear_arithmetic.
+  rewrite H0.
+  assumption.
+Qed.
 
 Fixpoint fact_rec (n: nat) :=
   match n with
@@ -714,7 +789,11 @@ As always, the key part of the proof is the choice of invariant.
 |*)
 
 Definition mailbox_invariant : assertion :=
-   fun/inv _ _ _ => True.
+  fun/inv tr heap v =>
+    match (v $! "done") with
+    | 0 => mailbox_spec heap tr
+    | _ => mailbox_done heap tr
+    end.
 
 Local Hint Unfold mailbox_invariant : core.
 Local Hint Constructors mailbox_spec mailbox_done : core.
@@ -725,7 +804,15 @@ Theorem mailbox_ok:
   mailbox mailbox_invariant
   <{ fun/inv tr' h' _ => mailbox_done h' tr' }>.
 Proof.
-Admitted.
+  ht.
+  rewrite e in H.
+  constructor.
+  assumption.
+
+  rewrite e in *.
+  constructor; eauto.
+  cases (v $! "done"); try propositional.
+Qed.
 
 (*|
 Streaming search
@@ -835,11 +922,87 @@ You'll need to customize this invariant:
 |*)
 
 Definition search_invariant (ptr: nat) (data: list nat) : assertion :=
-   fun/inv _ _ _ => True.
+  fun/inv tr heap v =>
+    (ptr = v $! "ptr") /\
+      (v $! "length" <= length data) /\
+      (array_at heap ptr data) /\
+      (search_spec (v $! "needle") (v $! "length") (skipn (v $! "length") data) tr).
+    
 
 Local Hint Unfold search_invariant : core.
 Local Hint Constructors search_spec search_done : core.
 Arguments List.nth: simpl nomatch.
+
+Lemma skipn_sub_app:
+  forall (data : list nat) (n : nat),
+    0 < n <= Datatypes.length data ->
+    List.skipn (n - 1) data =
+    List.nth (n - 1) data 0 :: List.skipn n data.
+Proof.
+  induct data; simplify.
+  - linear_arithmetic.
+  - assert (n = 1 \/ n - 1 = S (n - 1 - 1)) as Heq by linear_arithmetic.
+    cases Heq; rewrite Heq.
+    + reflexivity.
+    + replace n with (S (n - 1)) at 3 by linear_arithmetic.
+      simplify; apply IHdata; linear_arithmetic.
+Qed.
+Local Hint Rewrite skipn_sub_app using linear_arithmetic.
+
+Lemma skipn_empty: forall n (l : list nat),
+    n = length l ->
+    skipn n l = [].
+Proof.
+  intros.
+  rewrite H.
+  apply skipn_all.
+Qed.
+
+Lemma array_at_nth_eq :
+  forall data ptr (h: heap) n x,
+    array_at h ptr data ->
+    S n <= Datatypes.length data ->
+    h $! (ptr + n) = x ->
+    nth n data 0 = x.
+Proof.
+  induct data; simplify.
+  - linear_arithmetic.
+  - cases n; simplify.
+    + invert H.
+      replace (ptr + 0) with ptr by linear_arithmetic.
+      equality.
+    + invert H.
+      eapply IHdata.
+      eauto.
+      linear_arithmetic.
+      replace (S ptr + n) with (ptr + S n) by linear_arithmetic.
+      equality.
+Qed.
+
+Lemma array_at_nth_neq :
+  forall data ptr (h: heap) n x,
+    array_at h ptr data ->
+    S n <= Datatypes.length data ->
+    h $! (ptr + n) <> x ->
+    nth n data 0 <> x.
+Proof.
+  induct data; simplify.
+  - linear_arithmetic.
+  - cases n; simplify.
+    + invert H.
+      replace ptr with (ptr + 0) by linear_arithmetic.
+      assumption.
+    + invert H.
+      eapply IHdata.
+      eauto.
+      linear_arithmetic.
+      replace (S ptr + n) with (ptr + S n) by linear_arithmetic.
+      assumption.
+Qed.
+
+Local Hint Resolve array_at_nth_eq array_at_nth_neq : core.
+
+Local Hint Extern 4 (_ <= _) => linear_arithmetic : core.
 
 (* HINT 5 (see Pset9Sig.v) *) 
 Theorem search_ok ptr data:
@@ -853,7 +1016,11 @@ Theorem search_ok ptr data:
        array_at h' ptr data /\
        search_done data tr' }>.
 Proof.
-Admitted.
+  ht.
+  rewrite skipn_empty; eauto.
+  rewrite l in *.
+  eauto.
+Qed.
 
 (*|
 Congratulations!  If you have extra time and you'd like to explore
