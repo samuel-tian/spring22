@@ -80,7 +80,25 @@ Lemma ht_increment : forall init,
     (fun _ _ => True)
     (fun _ h => h $! 0 > init).
 Proof.
-Admitted.
+  intros.
+  fork (fun h => h $! 0 >= init)
+       (fun h h' => h = h' \/ h' $! 0 > init)
+       (fun (_ : unit) h => h $! 0 > init)
+       (fun h => h $! 0 >= init)
+       (fun h h' => h = h' \/ h' $! 0 > init)
+       (fun (_ : unit) h => h $! 0 > init).
+  step.
+  atomic (fun (r : nat) (h : heap) => h $! 0 >= init /\ r >= init).
+  eapply HtAtomic; simp.
+  step.
+  atomic (fun (r : nat) (h : heap) => h $! 0 >= init /\ r >= init).
+  eapply HtAtomic; simp.
+  simp.
+  simp.
+  simp.
+  simp.
+  simp.
+Qed.
 
 (* Part 3: prove soundness of the program logic *)
 
@@ -151,14 +169,256 @@ Proof. induct 1; simplify; eauto. Qed.
 Local Hint Extern 1 (_ >= _) => linear_arithmetic : core.
 Local Hint Constructors notAboutToFail : core.
 
+(* HINT 1-6 (see Pset12Sig.v) *)
 
-(* HINT 1-6 (see Pset12Sig.v) *)   
+Ltac existT_subst :=
+   repeat match goal with
+   | [ H : existT _ _ _ = existT _ _ _ |- _ ] => eapply inj_pair2 in H
+   end; subst.
+
+Lemma progress :
+  forall (t : Set) P (c : cmd t) R G Q,
+    hoare_triple P R c G Q ->
+    forall h, P h ->
+         notAboutToFail c.
+Proof.
+  intros.
+  induct H; simplify; eauto.
+  { econstructor; eauto. }
+  { simp. }
+Qed.
+
+Lemma trc_stableP :
+  forall P R h h',
+    (R) ^* h h'
+    -> stableP P R
+    -> P h
+    -> P h'.
+Proof.
+  induct 1; simplify; eauto.
+Qed.
+  
+Lemma trc_stableQ {t : Set} :
+  forall (Q : t -> hprop) R h h' v,
+    (R) ^* h h'
+    -> stableQ Q R
+    -> Q v h
+    -> Q v h'.
+Proof.
+  induct 1; simplify; eauto.
+  pose proof H1.
+  eapply IHtrc in H3; eauto.
+Qed.
+
+Lemma guarantee :
+  forall (t : Set) P (c : cmd t) R G Q,
+    hoare_triple P R c G Q ->
+    forall h,
+      P h ->
+      forall h' c',
+        step (h, c) (h', c') ->
+        G^* h h'.
+Proof.
+  induct 1; simplify.
+  { invert H3; existT_subst.
+    eapply IHhoare_triple; eauto.
+    eauto. }
+  { invert H5; existT_subst.
+    apply H2 in H4.
+    pose proof (IHhoare_triple1 _ H4 _ _ H8).
+    eapply trc_imply; eauto.
+
+    apply H3 in H4.
+    pose proof (IHhoare_triple2 _ H4 _ _ H8).
+    eapply trc_imply; eauto. }
+  { eauto. }
+  { invert H1. }
+  { invert H3; existT_subst; eauto. }
+  { invert H3; existT_subst; eauto. }
+  { eapply trc_imply; eauto. }
+Qed.
+
+Lemma post_return :
+  forall (t : Set) P R G Q (v : t) h h',
+    hoare_triple P R (Return v) G Q
+    -> (R) ^* h h'
+    -> P h
+    -> Q v h'.
+Proof.
+  induct 1; simplify.
+  { propositional.
+    eapply trc_stableP; eauto. }
+  { apply H1.
+    apply IHhoare_triple.
+    eapply trc_imply; eauto.
+    eauto. }
+Qed.
+
+Lemma preservation :
+  forall (t : Set) P (c : cmd t) R G Q,
+    hoare_triple P R c G Q ->
+    forall h,
+      P h ->
+      forall h' c',
+        step (h, c) (h', c') ->
+        hoare_triple (fun h'' => R^* h' h'') R c' G Q.
+Proof.    
+  induct 1; simplify.
+  { invert H3; existT_subst.
+    eauto.
+    specialize (H0 v0).
+    econstructor.
+    eauto.
+    simplify.
+    eapply post_return; eauto.
+    all: eauto. }
+  { invert H5; existT_subst.
+    { econstructor.
+      eapply IHhoare_triple1; eauto.
+      eauto.
+      eauto.
+      { simplify; eapply trc_imply; eauto. }
+      clear IHhoare_triple1.
+      clear IHhoare_triple2.
+      pose proof (guarantee _ _ _ _ _ _ H).
+      pose proof (H2 _ H4).
+      pose proof (H5 _ H6); clear H5.
+      pose proof (H7 _ _ H8); clear H6.
+      apply always_stableP in H0.
+      apply H3 in H4.
+      simplify.
+
+      assert (stableP P2 R).
+      { unfold stableP in *; simplify.
+        eapply H0 in H9; eauto. }
+      assert (stableP P2 G1).
+      { unfold stableP in *; simplify.
+        eapply H0 in H10; eauto. }
+      pose proof trc_stableP.
+      eapply H11.
+      eapply H6.
+      eauto.
+      eapply H11.
+      apply H5.
+      eauto.
+      eauto. }
+
+    { econstructor.
+      eauto.
+      eapply IHhoare_triple2; eauto.
+      eauto.
+        
+      clear IHhoare_triple1.
+      clear IHhoare_triple2.
+      pose proof (guarantee _ _ _ _ _ _ H0).
+      pose proof (H3 _ H4).
+      pose proof (H5 _ H6); clear H5.
+      pose proof (H7 _ _ H8); clear H6.
+      apply always_stableP in H.
+      apply H2 in H4.
+      simplify.
+
+      assert (stableP P1 R).
+      { unfold stableP in *; simplify.
+        eapply H in H9; eauto. }
+      assert (stableP P1 G2).
+      { unfold stableP in *; simplify.
+        eapply H in H10; eauto. }
+      pose proof trc_stableP.
+      eapply H11.
+      eapply H6.
+      eauto.
+      eapply H11.
+      apply H5.
+      eauto.
+      eauto.
+
+      simplify; eapply trc_imply; eauto. }
+  }
+  { invert H0. }
+  { invert H1. }
+  { invert H3.
+    existT_subst.
+    econstructor.
+    2: eauto.
+    eauto.
+    simplify.
+    propositional; subst.
+    invert H1.
+    eapply trc_stableQ; eauto.
+    eauto.
+    eauto.
+    eauto. }
+  { induct H3; existT_subst.
+    econstructor.
+    specialize (H init).
+    econstructor.
+    eauto.
+    simplify.
+    apply always_stableP in H.
+    unfold stableP in H.
+    induct H3; simplify; eauto.
+    eauto.
+    eauto.
+    eauto.
+    eauto.
+    
+    simplify.
+    cases r; simplify.
+    { econstructor; eauto.
+      simplify.
+      propositional.
+      equality. }
+    { econstructor; eauto. }
+  }
+  { econstructor.
+    eapply IHhoare_triple; eauto.
+    all: eauto.
+    simplify.
+    eapply trc_imply; eauto. }
+Qed.
+
+Theorem hoare_triple_sound' : forall (t : Set) P R (c : cmd t) G Q,
+  hoare_triple P R c G Q ->
+  forall h, P h ->
+       invariantFor (trsys_of h c)
+                    (fun st =>
+                       exists P',
+                         P' (fst st) /\
+                         hoare_triple P' R (snd st) G Q).
+Proof.
+  simplify.
+
+  apply invariant_induction; simplify.
+
+  { propositional; subst; simplify; eauto. }
+  { cases H1.
+    destruct s as [h1 c1].
+    destruct s' as [h2 c2].
+    simplify.
+    eexists.
+    propositional.
+    2: eapply preservation; eauto.
+    simplify.
+    eauto. }
+Qed.    
+
 Theorem hoare_triple_sound : forall (t : Set) P (c : cmd t) Q,
   hoare_triple P (fun _ _ => False) c (fun _ _ => True) Q ->
   forall h, P h ->
   invariantFor (trsys_of h c) (fun st => notAboutToFail (snd st)).
 Proof.
-Admitted.
+  simplify.
+
+  eapply invariant_weaken.
+  eapply hoare_triple_sound'; eauto.
+
+  simplify.
+  cases H1.
+  propositional.
+  eapply progress; eauto.
+Qed.
+
 End Impl.
 
 Module ImplCorrect : Pset12Sig.S := Impl.
